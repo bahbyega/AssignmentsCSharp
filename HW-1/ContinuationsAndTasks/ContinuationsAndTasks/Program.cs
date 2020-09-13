@@ -9,130 +9,111 @@ namespace ContinuationsAndTasks
     {
         static void ShowSplash()
         {
-            Console.WriteLine("Show Splash");
+            string message = "Show Splash";
+            Console.WriteLine(message);
         }
 
-        static Task RequestLicense(Random rnd)
+        // There could be exceptions thrown in next two methods.
+        static void RequestLicense()
         {
-            Task task = Task.Run( () => {
-                // random chance (50%) of throwing an exception
-                if (rnd.Next(2) == 0)
-                {
-                    throw null; // (!) needs to be a NoLicenseException
-                } else {
-                    Console.WriteLine("Request License");
-                }
-            });
-
-            try
-            {
-                task.Wait();
-            }
-            catch (AggregateException) //if exception generated => cancel
-            {
-                Console.WriteLine("License Request : No license.");
-            }
-
-            return task;
+            string message = "Request Licence";
+            Console.WriteLine(message);
+            //GenerateException(task); // throw some exception
+        }
+        static void CheckForUpdate()
+        {
+            string message = "Check for Update";
+            Task task = Task.Run(() => Console.WriteLine(message));
+            //GenerateException(task); // throw some exception
         }
 
-        static Task CheckForUpdate(Random rnd)
+        static void SetupMenus()
         {
-            Task task = Task.Run( () => {
+            string message = "Setup Menus";
+            Console.WriteLine(message);
+        }
+        static void DownloadUpdate()
+        {
+            string message = "Download Update";
+            Console.WriteLine(message);
+        }
+        static void SetupMenusFaulted()
+        {
+            string message = "!!! No license: Setup Menus cancelled.";
+            Console.WriteLine(message);
+        }
+        static void DownloadUpdateFaulted()
+        {
+            string message = "!!! Connection failure: Dowlnoad Update cancelled";
+            Console.WriteLine(message);
+        }
 
-                if (rnd.Next(2) == 1)
-                {
-                    throw null; // (!) needs to be a NoLicenseException
-                } else
-                    Console.WriteLine("Check for update");
-            });
-
+        static void DisplayWelcomeScreen()
+        {
+            string message = "Display Welcome Screen";
+            Console.WriteLine(message);
+        }
+        static void HideSplash()
+        {
+            string message = "Hide splash";
+            Console.WriteLine(message);
+        }
+        
+        // Generate exception
+        static void GenerateException(Task task)
+        {
+            if (GetException())
+            {
+                throw null;
+            }
             try
             {
                 task.Wait();
             }
             catch (AggregateException)
-            {
-                Console.WriteLine("Check For Update cancelled.");
-            }
-
-            return task;
+            { }
         }
-
-        static void SetupMenus()
+        
+        // Return true if exception generated
+        // false otherwise
+        static bool GetException()
         {
-            Console.WriteLine("Setup Menus");
-        }
-        static void DownloadUpdate()
-        {
-            Console.WriteLine("Download Update");
-        }
-        static void DisplayWelcomeScreen()
-        {
-            Console.WriteLine("Display Welcome Screen");
-        }
-        static void HideSplash()
-        {
-            Console.WriteLine("Hide splash");
+            Random rnd = new Random();
+            int chance = rnd.Next(2); // chance of exception
+            if (chance == 1)
+                return true;
+            return false;
         }
 
+        // Run tasks continuously
         static void ImitateLoadingStages()
         {
             // always execute
-            ShowSplash();
+            Task showSplash = Task.Run(() => ShowSplash());
+            Task rqstLicense = showSplash.ContinueWith(nextTask => RequestLicense());
+            Task checkForUpd = showSplash.ContinueWith(nextTask => CheckForUpdate());
 
-            Random rnd = new Random(); // random for exceptions
-            List<Task> tasks = new List<Task>();
+            // Handle tasks that can be faulted. 
+            // Care whether they're faulted or not. 
+            Task setupMenus = rqstLicense.ContinueWith(nextTask => SetupMenus(), TaskContinuationOptions.NotOnFaulted);
+            Task dwnldUpd = checkForUpd.ContinueWith(nextTask => DownloadUpdate(), TaskContinuationOptions.NotOnFaulted);
 
-            Task rqstLicense = RequestLicense(rnd);
-            Task checkForUpd = CheckForUpdate(rnd);
+            // Handle faulted tasks
+            Task setupMenusException = rqstLicense.ContinueWith(nextTask => SetupMenusFaulted(), TaskContinuationOptions.OnlyOnFaulted);
+            Task dwnldUpdException = checkForUpd.ContinueWith(nextTask => DownloadUpdateFaulted(), TaskContinuationOptions.OnlyOnFaulted);
 
-            if (rqstLicense.IsFaulted)
+            // Show welcome screen only if license good.
+            // displayWlcmScreen task runs only afrer setupMenus, which means
+            // it won't run if there's any excpetion. So no need to check for it.
+            Task displayWlcmScreen = setupMenus.ContinueWith(nextTask => DisplayWelcomeScreen());
+            Task hideSplash = displayWlcmScreen.ContinueWith(nextTask => HideSplash());
+
+            // Display final message if all tasks loaded without exception
+            if (!rqstLicense.IsFaulted && !checkForUpd.IsFaulted) // check if no exception
             {
-                rqstLicense.ContinueWith(setMnsTask =>
-                    {
-                        Console.WriteLine("No license. Setup Menus cancelled.");
-                    }
-                );
-            } else {
-                tasks.Add(rqstLicense.ContinueWith(setMnsTaskFault => //
-                {
-                /*long geezHowLong = 0;                         // test code to make 
-                for (long i = 0; i < 1000000000; i++)           // 'Setup Menus' a heavy operation
-                {                                               // and see that 'Check For Updates'
-                    geezHowLong += Math.Min(i, geezHowLong);    // and 'Download Update'
-                }*/                                             // run parallel to 'Setup Menus'
-                SetupMenus();
-                }));
+
+                hideSplash.ContinueWith(finalMessage => Console.WriteLine("Loaded successfully!"));
             }
-
-            if (checkForUpd.IsFaulted)
-            {
-                rqstLicense.ContinueWith(DwnldUpdkFault =>
-                    {
-                        Console.WriteLine("Connection fault. Can't check the update.");
-                    }
-                );
-            } else {
-                tasks.Add(checkForUpd.ContinueWith(DwnldUpd =>
-                {
-                    DownloadUpdate();
-                }));
-            }
-
-            Task.WaitAll(tasks.ToArray()); //wait for tasks to end before Welcome Screen
-
-            if (!rqstLicense.IsFaulted) // execute if license is OK
-            {
-                DisplayWelcomeScreen(); 
-                HideSplash();
-
-                if (checkForUpd.IsFaulted)
-                    Console.WriteLine("\nLoaded without the update.");
-                else
-                    Console.WriteLine("\nLoaded successfully.");
-            }
-
             Console.ReadKey();
         }
 
