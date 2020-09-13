@@ -13,18 +13,15 @@ namespace ContinuationsAndTasks
             Console.WriteLine(message);
         }
 
-        // There could be exceptions thrown in next two methods.
         static void RequestLicense()
         {
             string message = "Request Licence";
             Console.WriteLine(message);
-            //GenerateException(task); // throw some exception
         }
         static void CheckForUpdate()
         {
             string message = "Check for Update";
-            Task task = Task.Run(() => Console.WriteLine(message));
-            //GenerateException(task); // throw some exception
+            Console.WriteLine(message);
         }
 
         static void SetupMenus()
@@ -44,7 +41,7 @@ namespace ContinuationsAndTasks
         }
         static void DownloadUpdateFaulted()
         {
-            string message = "!!! Connection failure: Dowlnoad Update cancelled";
+            string message = "!!! Connection failure: Download Update cancelled";
             Console.WriteLine(message);
         }
 
@@ -88,10 +85,11 @@ namespace ContinuationsAndTasks
         // Run tasks continuously
         static void ImitateLoadingStages()
         {
-            // always execute
             Task showSplash = Task.Run(() => ShowSplash());
-            Task rqstLicense = showSplash.ContinueWith(nextTask => RequestLicense());
-            Task checkForUpd = showSplash.ContinueWith(nextTask => CheckForUpdate());
+
+            // Create tasks and generate possible exceptions
+            Task rqstLicense = showSplash.ContinueWith(nextTask => { RequestLicense(); GenerateException(nextTask); });
+            Task checkForUpd = showSplash.ContinueWith(nextTask => { CheckForUpdate(); GenerateException(nextTask); });
 
             // Handle tasks that can be faulted. 
             // Care whether they're faulted or not. 
@@ -104,16 +102,14 @@ namespace ContinuationsAndTasks
 
             // Show welcome screen only if license good.
             // displayWlcmScreen task runs only afrer setupMenus, which means
-            // it won't run if there's any excpetion. So no need to check for it.
-            Task displayWlcmScreen = setupMenus.ContinueWith(nextTask => DisplayWelcomeScreen());
-            Task hideSplash = displayWlcmScreen.ContinueWith(nextTask => HideSplash());
+            // it won't run if there's any exception with update. 
+            // So we only check if task was canceled.
+            Task displayWlcmScreen = setupMenus.ContinueWith(nextTask => DisplayWelcomeScreen(), TaskContinuationOptions.NotOnCanceled);
+            Task hideSplash = displayWlcmScreen.ContinueWith(nextTask => HideSplash(), TaskContinuationOptions.NotOnCanceled);
 
-            // Display final message if all tasks loaded without exception
-            if (!rqstLicense.IsFaulted && !checkForUpd.IsFaulted) // check if no exception
-            {
+            // Display final message if all tasks loaded without exception (previous were not canceled)
+            hideSplash.ContinueWith(finalMessage => Console.WriteLine("Loaded successfully!"), TaskContinuationOptions.NotOnCanceled);
 
-                hideSplash.ContinueWith(finalMessage => Console.WriteLine("Loaded successfully!"));
-            }
             Console.ReadKey();
         }
 
