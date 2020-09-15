@@ -31,7 +31,6 @@ namespace GarbageCollectionTests
         ~Garbage()
         {
             Console.WriteLine("Garbage collector working on: {0}th object", id);
-            arrayOfDoubles = null;
         }
 
 
