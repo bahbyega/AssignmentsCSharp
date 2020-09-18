@@ -1,0 +1,9 @@
+# build directories
+[Dd]ebug/
+[Rr]elease/
+bld/
+[Bb]in/
+[Oo]bj/
+
+#vs cache
+.vs
