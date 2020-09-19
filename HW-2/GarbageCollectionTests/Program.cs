@@ -13,31 +13,19 @@ namespace GarbageCollectionTests
     {
         public static void CreateLotsOfStuff()
         {
-            const int LENGTH = 7000;
-            const int OBJECTWEIGHT = 100;
+            const int OBJECTS_COUNT = 30;
+            const int OBJECT_WEIGHT = 100000000;
 
-            for (int i = 1; i <= LENGTH; i++)
+            for (int i = 1; i <= OBJECTS_COUNT; i++)
             {
-                new Garbage(i, OBJECTWEIGHT);
+                new Garbage(i, OBJECT_WEIGHT);
             }
 
-        }
-        public static void DoSomeWork()
-        {
-            for (int i = 1; i <= 10; i++)
-            {
-                Console.WriteLine("Doing the work {0}", i);
-            }
         }
 
         static void Main(string[] args)
         {
             CreateLotsOfStuff();
-            DoSomeWork();
-
-            // Uncomment next line to benchmark the code
-            //BenchmarkRunner.Run<NameParserBenchmarks>();
-
             Console.ReadKey();
         }
 

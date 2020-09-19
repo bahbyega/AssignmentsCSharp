@@ -32,9 +32,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="BenchmarkDotNet, Version=0.10.3.0, Culture=neutral, PublicKeyToken=aa0ca2f9092cefc4, processorArchitecture=MSIL">
-      <HintPath>..\packages\BenchmarkDotNet.0.10.3\lib\net45\BenchmarkDotNet.dll</HintPath>
-    </Reference>
     <Reference Include="BenchmarkDotNet.Core, Version=0.10.3.0, Culture=neutral, PublicKeyToken=aa0ca2f9092cefc4, processorArchitecture=MSIL">
       <HintPath>..\packages\BenchmarkDotNet.Core.0.10.3\lib\net45\BenchmarkDotNet.Core.dll</HintPath>
     </Reference>
@@ -67,7 +64,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Garbage.cs" />
-    <Compile Include="GarbageBenchmark.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
