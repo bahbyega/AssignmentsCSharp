@@ -10,7 +10,7 @@ namespace LINQtask
     {
         static void Main()
         {
-            
+            BusinessLogic bus = new BusinessLogic();
         }
     }
 }

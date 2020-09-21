@@ -13,7 +13,33 @@ namespace LINQtask
 
         public BusinessLogic()
         {
-            // наполнение обеих коллекций тестовыми данными
+            // Writing unit tests, so no reason to keep these 
+            /*User user1 = new User(1, "first", "surname");
+            User user2 = new User(2, "second", "surname");
+            User user3 = new User(3, "third", "surname");
+            User user4 = new User(4, "fourth", "surFourth");
+            User user5 = new User(1, "fifth", "surFifth");
+            users.Add(user1);
+            users.Add(user2);
+            users.Add(user3);
+            users.Add(user4);
+            users.Add(user5);
+
+            Record record1 = new Record(user1, "Record1");
+            Record record2 = new Record(user2, "Record2");
+            Record record3 = new Record(user3, "Record3");
+            Record record4 = new Record(user4, "Record4");
+            Record record5 = new Record(user5, "Record5");
+
+            records.Add(record1);
+            records.Add(record2);
+            records.Add(record3);
+            records.Add(record4);
+            records.Add(record5);*/
+        }
+        public BusinessLogic(IEnumerable<User> users)
+        {
+            this.users = users.ToList();
         }
 
         public List<User> GetUsersBySurname(String surname)
@@ -56,8 +82,7 @@ namespace LINQtask
         {
             var authors = (from record in records
                            where record.Message != null
-                           select record.Author).ToList(); // there are going
-                                                           // to be the same author multiple times
+                           select record.Author).Distinct().ToList();
             return authors;
         }
 
