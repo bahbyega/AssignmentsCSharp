@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace LINQtask
 {
@@ -13,39 +11,25 @@ namespace LINQtask
 
         public BusinessLogic()
         {
-            // Writing unit tests, so no reason to keep these 
-            /*User user1 = new User(1, "first", "surname");
-            User user2 = new User(2, "second", "surname");
-            User user3 = new User(3, "third", "surname");
-            User user4 = new User(4, "fourth", "surFourth");
-            User user5 = new User(1, "fifth", "surFifth");
-            users.Add(user1);
-            users.Add(user2);
-            users.Add(user3);
-            users.Add(user4);
-            users.Add(user5);
-
-            Record record1 = new Record(user1, "Record1");
-            Record record2 = new Record(user2, "Record2");
-            Record record3 = new Record(user3, "Record3");
-            Record record4 = new Record(user4, "Record4");
-            Record record5 = new Record(user5, "Record5");
-
-            records.Add(record1);
-            records.Add(record2);
-            records.Add(record3);
-            records.Add(record4);
-            records.Add(record5);*/
-        }
-        public BusinessLogic(IEnumerable<User> users)
-        {
+            User userSteve = new User(1, "Steve", "Jobs");
+            User userBill = new User(2, "Bill", "Gates");
+            User userBob = new User(3, "Bob", "TheBuilder");
+            User anotherBob = new User(3, "Bob", "TheBuilder"); // we create the same instances for testing
+            User[] users = new User[] { userSteve, userBill, userBob, anotherBob };
             this.users = users.ToList();
+
+            Record recordSteve = new Record(userSteve, null);
+            Record recordBill = new Record(userBill, "RecordBill");
+            Record recordBob = new Record(userBob, "RecordBob");
+            Record recordAnotherBob = new Record(anotherBob, "RecordBob");
+            Record[] records = new Record[] { recordSteve, recordBill, recordBob, recordAnotherBob };
+            this.records = records.ToList();
         }
 
         public List<User> GetUsersBySurname(String surname)
         {
             var usersToFind = (from user in users
-                               where user.Surname == surname
+                               where String.Equals(user.Surname, surname)
                                select user).ToList();
             return usersToFind;
         }
@@ -72,10 +56,10 @@ namespace LINQtask
 
         public List<String> GetAllUniqueNames()
         {
-            var uniqueNames = from user in users
-                              select user.Name + " " + user.Surname;
-            uniqueNames.Distinct();
-            return (List<string>)uniqueNames; // cast from IEnumerable to List
+            var uniqueNames = (from user in users
+                              select user.Name + " " + user.Surname)
+                              .Distinct(StringComparer.OrdinalIgnoreCase);
+            return uniqueNames.ToList();
         }
 
         public List<User> GetAllAuthors()
@@ -103,26 +87,26 @@ namespace LINQtask
         public List<User> GetOrderedUsers()
         {
             var usersSorted = users.OrderBy(user => user.ID);
-            return (List<User>)usersSorted;
+            return usersSorted.ToList();
         }
 
         public List<User> GetDescendingOrderedUsers()
         {
             var usersSorted = users.OrderByDescending(user => user.ID);
-            return (List<User>)usersSorted;
+            return usersSorted.ToList();
         }
 
         public List<User> GetReversedUsers()
         {
             var usersReversed = (from user in users
                                  select user).Reverse();
-            return (List<User>)usersReversed;
+            return usersReversed.ToList();
         }
 
         public List<User> GetUsersPage(int pageSize, int pageIndex)
         {
             var usersPage = users.Skip(pageSize).Take(pageIndex);
-            return (List<User>)usersPage;
+            return usersPage.ToList();
         }
     }
 }
