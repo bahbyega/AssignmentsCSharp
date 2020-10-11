@@ -6,7 +6,8 @@ namespace BigDataIMDB
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            DataParser dataParser = new DataParser();
+            dataParser.ParseMovieCodes();
         }
     }
 }
