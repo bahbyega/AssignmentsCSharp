@@ -4,7 +4,7 @@ using System.Text;
 
 namespace BigDataIMDB
 {
-    struct Movie
+    public struct Movie
     {
         private string MovieTitle;
         private HashSet<uint> ActorsIds;
