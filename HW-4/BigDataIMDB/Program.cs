@@ -7,7 +7,9 @@ namespace BigDataIMDB
         static void Main(string[] args)
         {
             DataParser dataParser = new DataParser();
-            dataParser.ParseMovieCodes();
+            dataParser.ParseMovieCodesLinq();
+            dataParser.ParseActorsDirectorsNames();
+            dataParser.ParseActorsDirectorsMovieInfo();
         }
     }
 }
