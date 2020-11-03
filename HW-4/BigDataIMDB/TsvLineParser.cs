@@ -1,12 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Text;
 
 namespace BigDataIMDB
 {
     /// <summary>
-    /// Class for optimizing line parsing
+    /// Class for parsing lines.
+    /// The point of parsing lines externally is to optimise time required for it.
+    /// First of all, each method only parses columns that are needed to be parsed.
+    /// Secondly, it uses Spans, which are very efficient in slicing and cutting in
+    /// comparisson to string.Split.
     /// </summary>
     class TsvLineParser
     {
@@ -14,11 +19,11 @@ namespace BigDataIMDB
         private const char Tab = '\t';
 
         /// <summary>
-        /// Parses file contating information for movies.
+        /// Parses line contating information for movies.
         /// </summary>
         /// <param name="line"></param>
         /// <returns>Tuple of movie's and a Movie</returns>
-        public (int, Movie) ParseLineForMovies(ReadOnlySpan<char> line)
+        public static (int, Movie) ParseLineForMovies(ReadOnlySpan<char> line)
         {
             var tabCount = 1;
             int id = 0;
@@ -54,11 +59,11 @@ namespace BigDataIMDB
             return (id, new Movie(title, lang));
         }
         /// <summary>
-        /// Parses file containing names of actors and directors
+        /// Parses line containing names of actors and directors
         /// </summary>
         /// <param name="line"></param>
         /// <returns></returns>
-        public (int, Staff) ParseLineForActor(ReadOnlySpan<char> line)
+        public static (int, Staff) ParseLineForActor(ReadOnlySpan<char> line)
         {
             var tabCount = 1;
             int id = 0;
@@ -87,7 +92,7 @@ namespace BigDataIMDB
             return (id, cast);
         }
         /// <summary>
-        /// Parses file contating information in which did an actor or director take part
+        /// Parses line contating information in which did an actor or director take part
         /// </summary>
         /// <param name="line"></param>
         /// <returns></returns>
@@ -132,6 +137,40 @@ namespace BigDataIMDB
 
             return (movieID, staffID, isActor);
         }
-        
+
+        public static (int, float, int) ParseLineForMovieRating(ReadOnlySpan<char> line)
+        {
+            var tabCount = 1;
+            int movieID = 0;
+            float averageRating = 0;
+            int numOfVotes = 0;
+
+            while (tabCount <= 3)
+            {
+                var tabAt = line.IndexOf(Tab);
+
+                if (tabCount == 1) // id
+                {
+                    var value = int.Parse(line.Slice(2, tabAt - 2)); // don't need first 2 characters
+                    movieID = value;
+                }
+                else if (tabCount == 2) // average rating
+                {
+                    var value = float.Parse(line.Slice(0, tabAt));
+                    averageRating = value;
+                }
+                else if (tabCount == 3) // number of votes
+                {
+                    var value = int.Parse(line.Slice(0, tabAt));
+                    numOfVotes = value;
+                }
+
+                line = line.Slice(tabAt + 1);
+                tabCount++;
+            }
+
+            return (movieID, averageRating, numOfVotes);
+        }
+
     }
 }

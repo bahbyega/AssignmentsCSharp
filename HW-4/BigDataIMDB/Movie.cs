@@ -9,16 +9,18 @@ namespace BigDataIMDB
         private string MovieTitle;
         public HashSet<Staff> Staff;
         public HashSet<Tag> Tags;
-        private float AverageRating;
+        public float AverageRating;
+        public float WeightedRating;
         private string Language;
 
         public Movie(string movieTitle, string language)
         {
             MovieTitle = movieTitle;
-            Language = language;
             Staff = new HashSet<Staff>();
             Tags = new HashSet<Tag>();
             AverageRating = 0;
+            WeightedRating = 0;
+            Language = language;
         }
     }
 }
