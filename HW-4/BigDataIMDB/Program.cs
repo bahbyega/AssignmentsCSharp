@@ -10,6 +10,8 @@ namespace BigDataIMDB
             dataParser.ParseMovieCodesLinq();
             dataParser.ParseActorsDirectorsNames();
             dataParser.ParseActorsDirectorsMovieInfo();
+            dataParser.ParseTagsAndItsIds();
+            dataParser.ParseTagsAndItsMovieScores();
         }
     }
 }

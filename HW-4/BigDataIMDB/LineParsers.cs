@@ -1,17 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Reflection;
 using System.Text;
 
 namespace BigDataIMDB
 {
     /// <summary>
-    /// Class for parsing lines.
+    /// Classes for parsing lines.
     /// The point of parsing lines externally is to optimise time required for it.
     /// First of all, each method only parses columns that are needed to be parsed.
-    /// Secondly, it uses Spans, which are very efficient in slicing and cutting in
-    /// comparisson to string.Split.
+    /// Secondly, it uses Spans, which are very efficient in slicing and cutting 
+    /// compared to string.Split.
     /// </summary>
     class TsvLineParser
     {
@@ -172,5 +173,112 @@ namespace BigDataIMDB
             return (movieID, averageRating, numOfVotes);
         }
 
+    }
+    class CsvLineParser
+    {
+        // define comma
+        private const char Comma = ',';
+
+        // (nocheckin) need to think about the way to remove commaAt since it's csv not tsv
+        public static (int, Tag) ParseLineForTagIdAndTag(ReadOnlySpan<char> line)
+        {
+            var commaCount = 0;
+
+            int tagID = 0;
+            Tag tag = new Tag();
+
+            while (commaCount <= 1)
+            {
+                var commaAt = line.IndexOf(Comma);
+
+                if (commaCount == 0) // tag id
+                {
+                    var value = int.Parse(line.Slice(0, commaAt));
+                    tagID = value;
+                }
+                else if (commaCount == 1) // tag
+                {
+                    var value = line.Slice(0).ToString();
+                    tag = new Tag(value);
+                    break;
+                }
+                commaAt = line.IndexOf(Comma);
+                line = line.Slice(commaAt + 1);
+                commaCount++;
+            }
+
+            return (tagID, tag);
+        }
+        // (nocheckin) need to think about the way to remove commaAt since it's csv not tsv
+        public static (int, int, float) ParseLineForTagScores(ReadOnlySpan<char> line)
+        {
+            var commaCount = 0;
+
+            int movieID = 0;
+            int tagID = 0;
+            float tagScore = (float)0;
+
+            while (commaCount <= 2)
+            {
+                var commaAt = line.IndexOf(Comma);
+
+                if (commaCount == 0) // movie id
+                {
+                    var value = int.Parse(line.Slice(0, commaAt));
+                    movieID = value;
+                }
+                else if (commaCount == 1) // tag id
+                {
+                    var value = int.Parse(line.Slice(0, commaAt));
+                    tagID = value;
+                }
+                else if (commaCount == 2) // tag score
+                {
+                    // need this weird culture info because float is "0.012345" instead of "0,012345"
+                    var value = float.Parse(line.Slice(0).ToString(), CultureInfo.InvariantCulture.NumberFormat);
+                    tagScore = value;
+                    break;
+                }
+                commaAt = line.IndexOf(Comma);
+                line = line.Slice(commaAt + 1);
+                commaCount++;
+            }
+
+            return (movieID, tagID, tagScore);
+        }
+        // (nocheckin)
+        public static (int, int) ParseLineForLinks(ReadOnlySpan<char> line)
+        {
+            var commaCount = 0;
+                       
+            int movieImdbID = 0;
+            int movieLensID = 0;
+
+            while (commaCount <= 2)
+            {
+                var commaAt = line.IndexOf(Comma);
+
+                if (commaCount == 1) // movieLens id
+                {
+                    var value = int.Parse(line.Slice(0, commaAt));
+                    movieImdbID = value;
+                }
+                else if (commaCount == 2) // imdb id
+                {
+                    int value;
+                    if (line.IsEmpty) // there are line like "1316,0115548," in the links file
+                        value = 0;  // which means there's no movieLensID for that movie.
+                    else            // that's why we need that check
+                        value = int.Parse(line.Slice(0));
+                    movieLensID = value;
+                    break;
+                }
+                commaAt = line.IndexOf(Comma);
+                line = line.Slice(commaAt + 1);
+                commaCount++;
+            }
+
+            return (movieLensID, movieImdbID);
+        }
     }
 }

@@ -7,7 +7,12 @@ namespace BigDataIMDB
     public struct Tag
     {
         private string Name;
-        HashSet<Movie> Movies;
+        public Dictionary<Movie, float> MoviesWithScores ;
 
+        public Tag(string name)
+        {
+            Name = name;
+            MoviesWithScores = new Dictionary<Movie, float>();
+        }
     }
 }

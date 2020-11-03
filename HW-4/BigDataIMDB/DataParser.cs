@@ -21,6 +21,7 @@ namespace BigDataIMDB
         private const string PATH_TO_RATINGS = @"ml-latest/Ratings_IMDB.tsv";
         private const string PATH_TO_TAG_CODES_MOVIE_LENS = @"ml-latest/TagCodes_MovieLens.csv";
         private const string PATH_TO_TAG_SCORES_MOVIE_LENS = @"ml-latest/TagScores_MovieLens.csv";
+        private const string PATH_TO_LINKS_FROM_MOVIELENS_TO_IMDB = @"ml-latest/links_IMDB_MovieLens.csv";
 
         // dictionaries of data
         private static Dictionary<int, Movie> Movie_Codes_dict = new Dictionary<int, Movie>();
@@ -28,6 +29,8 @@ namespace BigDataIMDB
 
         private static Dictionary<int, Staff> Staff_dict = new Dictionary<int, Staff>();
 
+        private static Dictionary<int, Tag> Tags_dict = new Dictionary<int, Tag>();
+        private static Dictionary<int, int> LinksFromMovieLensToImdbIds_dict = new Dictionary<int, int>();
 
         public DataParser() { }
 
@@ -61,7 +64,8 @@ namespace BigDataIMDB
                     Task.WhenAll(firstCoreTask, secondCoreTask, thirdCoreTask);
                 }
             }
-            else Console.WriteLine("Couldn't find file {0}", PATH_TO_MOVIE_CODES);
+            else
+                Console.WriteLine("Couldn't find file {0}", PATH_TO_MOVIE_CODES);
         }
 
         public void ParseMovieCodesNoParallel()
@@ -76,8 +80,7 @@ namespace BigDataIMDB
                     streamReader.ReadLine(); // skip first line
                     while ((line = streamReader.ReadLine().AsSpan()) != null)
                     {
-                        var parser = new TsvLineParser();
-                        var parsedLine = parser.ParseLineForMovies(line);
+                        var parsedLine = TsvLineParser.ParseLineForMovies(line);
                         var key = parsedLine.Item1;
 
                         if (!Movie_Codes_dict.ContainsKey(key))
@@ -87,7 +90,8 @@ namespace BigDataIMDB
                     }
                 }
             }
-            else Console.WriteLine("Couldn't find file {0}", PATH_TO_MOVIE_CODES);
+            else
+                Console.WriteLine("Couldn't find file {0}", PATH_TO_MOVIE_CODES);
         }
         public void ParseMovieCodes_Split()
         {
@@ -118,7 +122,8 @@ namespace BigDataIMDB
                     }
                 }
             }
-            else Console.WriteLine("Couldn't find file {0}", PATH_TO_MOVIE_CODES);
+            else
+                Console.WriteLine("Couldn't find file {0}", PATH_TO_MOVIE_CODES);
         }
         public void ParseMovieCodesLinq()
         {
@@ -141,7 +146,8 @@ namespace BigDataIMDB
                     }
                 }
             }
-            else Console.WriteLine("Couldn't find file {0}", PATH_TO_MOVIE_CODES);
+            else
+                Console.WriteLine("Couldn't find file {0}", PATH_TO_MOVIE_CODES);
         }
         public Task RunTasksWithBlockingCollection(BlockingCollection<string> input)
         {
@@ -153,8 +159,7 @@ namespace BigDataIMDB
                 {
                     if (match.IsMatch(str))
                     {
-                        var parser = new TsvLineParser();
-                        (int id, Movie movie) = parser.ParseLineForMovies(str.AsSpan());
+                        (int id, Movie movie) = TsvLineParser.ParseLineForMovies(str.AsSpan());
 
                         // collect data in a dict
                         if (!Movie_Codes_dict_Conc.ContainsKey(id))
@@ -182,8 +187,7 @@ namespace BigDataIMDB
                     streamReader.ReadLine();
                     while ((line = streamReader.ReadLine().AsSpan()) != null)
                     {
-                        var lineParser = new TsvLineParser();
-                        (int id, Staff cast) = lineParser.ParseLineForActor(line);
+                        (int id, Staff cast) = TsvLineParser.ParseLineForActor(line);
 
                         if (!Staff_dict.ContainsKey(id))
                         {
@@ -192,7 +196,8 @@ namespace BigDataIMDB
                     }
                 }
             }
-            else Console.WriteLine("Couldn't find file {0}", PATH_TO_ACTORS_DIRECTORS_NAMES_TXT);
+            else
+                Console.WriteLine("Couldn't find file {0}", PATH_TO_ACTORS_DIRECTORS_NAMES_TXT);
         }
         /// <summary>
         /// Parses file containing information in which movies actors take part
@@ -214,12 +219,13 @@ namespace BigDataIMDB
                         // staffID == 0 when ParseLineForActorMoreInfo didn't parse director or actor
                         if (staffID != 0)
                         {
-                            FindMovieForStaff(movieID, staffID, isActor);
+                            ConnectStaffWithMovie(movieID, staffID, isActor);
                         }
                     }
                 }
             }
-            else Console.WriteLine("Couldn't find file {0}", PATH_TO_ACTORS_DIRECTORS_CODES_TSV);
+            else
+                Console.WriteLine("Couldn't find file {0}", PATH_TO_ACTORS_DIRECTORS_CODES_TSV);
         }
         /// <summary>
         /// Connects staff with its movies and vice versa
@@ -227,7 +233,7 @@ namespace BigDataIMDB
         /// <param name="movieID"></param>
         /// <param name="staffID"></param>
         /// <param name="isActor"></param>
-        public static void FindMovieForStaff(int movieID, int staffID, bool isActor)
+        public void ConnectStaffWithMovie(int movieID, int staffID, bool isActor)
         {
             if (Movie_Codes_dict.ContainsKey(movieID) && Staff_dict.ContainsKey(staffID))
             {
@@ -236,9 +242,151 @@ namespace BigDataIMDB
 
                 if (isActor) staff.isActor.Add(movie);
                 else staff.isDirector.Add(movie);
-                
+
                 movie.Staff.Add(staff);
             }
         }
+
+        private float CalculateWeightedRating(int numVotes, float averageRating)
+        {
+            // here we compute weighted rating using shrinkage estimator (just like IMDB does)
+            // weighted rating (WR) = (v ÷ (v+m)) × R + (m ÷ (v+m)) × C , where:
+            // * R = average for the movie (mean) = (Rating)
+            // * v = number of votes for the movie = (votes)
+            // * m = minimum votes required to be listed in the Top 250(currently 3000)
+            // * C = the mean vote across the whole report(currently 6.9)
+            int minVotesRequiredToBeInTop = 3000;
+            float meanVoteAcross = (float)6.9;
+
+            return (numVotes / (numVotes + minVotesRequiredToBeInTop) * averageRating +
+                minVotesRequiredToBeInTop / (numVotes + minVotesRequiredToBeInTop)) * meanVoteAcross;
+        }
+        /// <summary>
+        /// Parses file containing rating for each movie and connects them
+        /// </summary>
+        public void CollectRatingForEachMovie()
+        {
+            if (File.Exists(PATH_TO_RATINGS))
+            {
+                using (FileStream fileStream = File.OpenRead(PATH_TO_ACTORS_DIRECTORS_CODES_TSV))
+                using (StreamReader streamReader = new StreamReader(fileStream))
+                {
+                    ReadOnlySpan<char> line;
+                    streamReader.ReadLine();
+                    while ((line = streamReader.ReadLine().AsSpan()) != null)
+                    {
+                        // get data
+                        (int movieID, float averageRating, int numVotes) = TsvLineParser.ParseLineForMovieRating(line);
+
+                        // connect rating with a movie
+                        if (Movie_Codes_dict.ContainsKey(movieID))
+                        {
+                            Movie_Codes_dict.TryGetValue(movieID, out Movie movie);
+                            movie.AverageRating = averageRating;
+                            movie.WeightedRating = CalculateWeightedRating(numVotes, averageRating);
+                        }
+                    }
+                }
+            }
+            else
+                Console.WriteLine("Couldn't find file {0}", PATH_TO_RATINGS);
+        }
+
+        #region Tags and everything connected to it
+        public void ParseTagsAndItsIds()
+        {
+            if (File.Exists(PATH_TO_TAG_CODES_MOVIE_LENS))
+            {
+
+                using (FileStream fileStream = File.OpenRead(PATH_TO_TAG_CODES_MOVIE_LENS))
+                using (StreamReader streamReader = new StreamReader(fileStream))
+                {
+                    ReadOnlySpan<char> line;
+                    streamReader.ReadLine();
+                    while ((line = streamReader.ReadLine().AsSpan()) != null)
+                    {
+                        // get data
+                        (int tagID, Tag tag) = CsvLineParser.ParseLineForTagIdAndTag(line);
+                        if (!Tags_dict.ContainsKey(tagID))
+                        {
+                            Tags_dict.Add(tagID, tag);
+                        }
+                    }
+                }
+            }
+            else
+                Console.WriteLine("Couldn't find file {0}", PATH_TO_TAG_CODES_MOVIE_LENS);
+        }
+        public void ParseTagsAndItsMovieScores()
+        {
+            ParseLinksFromMovieLensToImdbIds(); // we need to parse it to know how ids connect
+
+            if (File.Exists(PATH_TO_TAG_SCORES_MOVIE_LENS))
+            {
+
+                using (FileStream fileStream = File.OpenRead(PATH_TO_TAG_SCORES_MOVIE_LENS))
+                using (StreamReader streamReader = new StreamReader(fileStream))
+                {
+                    ReadOnlySpan<char> line;
+                    streamReader.ReadLine();
+                    while ((line = streamReader.ReadLine().AsSpan()) != null)
+                    {
+                        // get data
+                        (int movieLensID, int tagID, float tagScore) = CsvLineParser.ParseLineForTagScores(line);
+                        if (tagScore > 0.5) // interested only in score more than 0.5
+                        {
+                            if (Tags_dict.ContainsKey(tagID))
+                            {
+                                ConnectTagWithMovie(movieLensID, tagID, tagScore);
+                            }
+                        }
+                    }
+                }
+            }
+            else
+                Console.WriteLine("Couldn't find file {0}", PATH_TO_TAG_SCORES_MOVIE_LENS);
+        }
+        private void ParseLinksFromMovieLensToImdbIds()
+        {
+            if (File.Exists(PATH_TO_LINKS_FROM_MOVIELENS_TO_IMDB))
+            {
+                using (FileStream fileStream = File.OpenRead(PATH_TO_LINKS_FROM_MOVIELENS_TO_IMDB))
+                using (StreamReader streamReader = new StreamReader(fileStream))
+                {
+                    ReadOnlySpan<char> line;
+                    streamReader.ReadLine();
+                    while ((line = streamReader.ReadLine().AsSpan()) != null )
+                    {
+                        // get data
+                        (int movieLensID, int movieImdbID) = CsvLineParser.ParseLineForLinks(line);
+                        if (!LinksFromMovieLensToImdbIds_dict.ContainsKey(movieLensID))
+                        {
+                            LinksFromMovieLensToImdbIds_dict.Add(movieLensID, movieImdbID);
+                        }
+                    }
+                }
+            }
+            else
+                Console.WriteLine("Couldn't find file {0}", PATH_TO_LINKS_FROM_MOVIELENS_TO_IMDB);
+        }
+        private void ConnectTagWithMovie(int movieLensID, int tagID, float tagScore)
+        {
+            if (LinksFromMovieLensToImdbIds_dict.ContainsKey(movieLensID))
+            {
+                if (Tags_dict.ContainsKey(tagID))
+                {
+                    LinksFromMovieLensToImdbIds_dict.TryGetValue(movieLensID, out int movieImdbID);
+                    Tags_dict.TryGetValue(tagID, out Tag tag);
+
+                    if (Movie_Codes_dict.ContainsKey(movieImdbID))
+                    {
+                        Movie_Codes_dict.TryGetValue(movieImdbID, out Movie movie);
+                        movie.Tags.Add(tag); // add tag to movie
+                        tag.MoviesWithScores.Add(movie, tagScore); // add movie and its tag score to tag 
+                    }
+                }
+            }
+        }
+        #endregion
     }
 }
