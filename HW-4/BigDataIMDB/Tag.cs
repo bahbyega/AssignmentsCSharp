@@ -6,7 +6,7 @@ namespace BigDataIMDB
 {
     public struct Tag
     {
-        private string Name;
+        public string Name;
         public Dictionary<Movie, float> MoviesWithScores ;
 
         public Tag(string name)

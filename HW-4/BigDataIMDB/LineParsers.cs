@@ -14,7 +14,7 @@ namespace BigDataIMDB
     /// Secondly, it uses Spans, which are very efficient in slicing and cutting 
     /// compared to string.Split.
     /// </summary>
-    class TsvLineParser
+    public struct TsvLineParser
     {
         // define tabbing
         private const char Tab = '\t';
@@ -23,7 +23,7 @@ namespace BigDataIMDB
         /// Parses line contating information for movies.
         /// </summary>
         /// <param name="line"></param>
-        /// <returns>Tuple of movie's and a Movie</returns>
+        /// <returns>Tuple of movie's id and a Movie</returns>
         public static (int, Movie) ParseLineForMovies(ReadOnlySpan<char> line)
         {
             var tabCount = 1;
@@ -31,8 +31,8 @@ namespace BigDataIMDB
             string title = "";
             string lang = "";
 
-            // parse first 5 tabs
-            while (tabCount <= 5)
+            // parse first 4 tabs
+            while (tabCount <= 4)
             {
                 var tabAt = line.IndexOf(Tab);
 
@@ -46,7 +46,7 @@ namespace BigDataIMDB
                     var value = line.Slice(0, tabAt).ToString();
                     title = value;
                 }
-                else if (tabCount == 5)
+                else if (tabCount == 4)
                 {
                     var value = line.Slice(0, tabAt).ToString();
                     lang = value;
@@ -57,7 +57,7 @@ namespace BigDataIMDB
                 tabCount++;
             }
 
-            return (id, new Movie(title, lang));
+            return (0, new Movie(/*title, lang*/));
         }
         /// <summary>
         /// Parses line containing names of actors and directors

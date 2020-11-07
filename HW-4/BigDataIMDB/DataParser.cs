@@ -24,13 +24,14 @@ namespace BigDataIMDB
         private const string PATH_TO_LINKS_FROM_MOVIELENS_TO_IMDB = @"ml-latest/links_IMDB_MovieLens.csv";
 
         // dictionaries of data
-        private static Dictionary<int, Movie> Movie_Codes_dict = new Dictionary<int, Movie>();
-        private static ConcurrentDictionary<int, Movie> Movie_Codes_dict_Conc = new ConcurrentDictionary<int, Movie>();
+        public static Dictionary<int, Movie> Movie_Codes_dict = new Dictionary<int, Movie>();
+        public static Dictionary<string, int> Movie_Name_Id_dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        public static ConcurrentDictionary<int, Movie> Movie_Codes_dict_Conc = new ConcurrentDictionary<int, Movie>();
 
-        private static Dictionary<int, Staff> Staff_dict = new Dictionary<int, Staff>();
+        public static Dictionary<int, Staff> Staff_dict = new Dictionary<int, Staff>();
 
-        private static Dictionary<int, Tag> Tags_dict = new Dictionary<int, Tag>();
-        private static Dictionary<int, int> LinksFromMovieLensToImdbIds_dict = new Dictionary<int, int>();
+        public static Dictionary<int, Tag> Tags_dict = new Dictionary<int, Tag>();
+        public static Dictionary<int, int> LinksFromMovieLensToImdbIds_dict = new Dictionary<int, int>();
 
         public DataParser() { }
 
@@ -48,7 +49,6 @@ namespace BigDataIMDB
                 {
                     // read file string by string
                     string line;
-
 
                     var blockingCollection = new BlockingCollection<string>();
 
@@ -80,12 +80,17 @@ namespace BigDataIMDB
                     streamReader.ReadLine(); // skip first line
                     while ((line = streamReader.ReadLine().AsSpan()) != null)
                     {
-                        var parsedLine = TsvLineParser.ParseLineForMovies(line);
-                        var key = parsedLine.Item1;
+                        (int id, Movie movie) = TsvLineParser.ParseLineForMovies(line);
 
-                        if (!Movie_Codes_dict.ContainsKey(key))
+                        if (!Movie_Codes_dict.ContainsKey(id))
                         {
-                            Movie_Codes_dict.Add(key, parsedLine.Item2);
+                            Movie_Codes_dict.Add(id, movie);
+                        }
+
+                        // add reference from movie name to its id
+                        if (!Movie_Name_Id_dict.ContainsKey(movie.MovieTitle))
+                        {
+                            Movie_Name_Id_dict.Add(movie.MovieTitle, id);
                         }
                     }
                 }
@@ -107,16 +112,23 @@ namespace BigDataIMDB
                         string[] lineParsed = line.Split("\t");
 
                         // Only parse certain languages
-                        string language = lineParsed[4].ToLower();
+                        string language = lineParsed[3].ToLower();
 
-                        if (language == "en" || language == "ru")
+                        if (language == "en" || language == "ru" || language == "us")
                         {
-                            int key = int.Parse(lineParsed[0].Substring(2));
+                            int id = int.Parse(lineParsed[0].Substring(2));
+                            Movie movie = new Movie(lineParsed[2], language);
 
                             // collect data in a dict
-                            if (!Movie_Codes_dict.ContainsKey(key))
+                            if (!Movie_Codes_dict.ContainsKey(id))
                             {
-                                Movie_Codes_dict.Add(key, new Movie(lineParsed[2], language));
+                                Movie_Codes_dict.Add(id, movie);
+                            }
+
+                            // add reference from movie name to its id
+                            if (!Movie_Name_Id_dict.ContainsKey(movie.MovieTitle))
+                            {
+                                Movie_Name_Id_dict.Add(movie.MovieTitle, id);
                             }
                         }
                     }
@@ -136,12 +148,19 @@ namespace BigDataIMDB
                     .Select(line => line.Split("\t"));
                 foreach (var line in tempstrings)
                 {
-                    if (line[4] == "ru" || line[4] == "en")
+                    if (line[3].ToLower() == "ru" || line[3].ToLower() == "en" || line[3].ToLower() == "us")
                     {
-                        int key = int.Parse(line[0].Substring(2));
-                        if (!Movie_Codes_dict.ContainsKey(key))
+                        int id = int.Parse(line[0].Substring(2));
+                        Movie movie = new Movie(line[2], line[4]);
+
+                        if (!Movie_Codes_dict.ContainsKey(id))
                         {
-                            Movie_Codes_dict.Add(key, new Movie(line[2], line[4]));
+                            Movie_Codes_dict.Add(id, movie);
+                        }
+                        // add reference from movie name to its id
+                        if (!Movie_Name_Id_dict.ContainsKey(movie.MovieTitle))
+                        {
+                            Movie_Name_Id_dict.Add(movie.MovieTitle, id);
                         }
                     }
                 }
@@ -165,6 +184,11 @@ namespace BigDataIMDB
                         if (!Movie_Codes_dict_Conc.ContainsKey(id))
                         {
                             Movie_Codes_dict_Conc.TryAdd(id, movie);
+                        }
+                        // add reference from movie name to its id
+                        if (!Movie_Name_Id_dict.ContainsKey(movie.MovieTitle))
+                        {
+                            Movie_Name_Id_dict.Add(movie.MovieTitle, id);
                         }
                     }
                 }

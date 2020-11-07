@@ -6,7 +6,7 @@ namespace BigDataIMDB
 {
     public struct Movie
     {
-        private string MovieTitle;
+        public string MovieTitle;
         public HashSet<Staff> Staff;
         public HashSet<Tag> Tags;
         public float AverageRating;
