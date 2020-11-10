@@ -15,7 +15,7 @@ namespace BigDataIMDB
     class DataParser
     {
         // Paths to datasets
-        private const string PATH_TO_MOVIE_CODES = @"ml-latest/MovieCodes_IMDB.tsv";
+        private const string PATH_TO_MOVIE_CODES = @"../../../../ml-latest/MovieCodes_IMDB.tsv";
         private const string PATH_TO_ACTORS_DIRECTORS_NAMES_TXT = @"ml-latest/ActorsDirectorsNames_IMDB.txt";
         private const string PATH_TO_ACTORS_DIRECTORS_CODES_TSV = @"ml-latest/ActorsDirectorsCodes_IMDB.tsv";
         private const string PATH_TO_RATINGS = @"ml-latest/Ratings_IMDB.tsv";
@@ -48,20 +48,21 @@ namespace BigDataIMDB
                 using (StreamReader streamReader = new StreamReader(fileStream))
                 {
                     // read file string by string
-                    string line;
+                    string line = null;
 
                     var blockingCollection = new BlockingCollection<string>();
 
                     Task firstCoreTask = RunTasksWithBlockingCollection(blockingCollection);
                     Task secondCoreTask = RunTasksWithBlockingCollection(blockingCollection);
-                    Task thirdCoreTask = RunTasksWithBlockingCollection(blockingCollection);
+                    Task thirdCoreTask = RunTasksWithBlockingCollection(blockingCollection);    // my system has 4 cores:
+                    //Task fourthCoreTask = RunTasksWithBlockingCollection(blockingCollection); // main core loads files <-> 3 cores to process data
                     streamReader.ReadLine(); // skip line
                     while ((line = streamReader.ReadLine()) != null)
                     {
                         blockingCollection.Add(line);
                     }
                     blockingCollection.CompleteAdding();
-                    Task.WhenAll(firstCoreTask, secondCoreTask, thirdCoreTask);
+                    Task.WhenAll(firstCoreTask, secondCoreTask, thirdCoreTask/*, fourthCoreTask*/);
                 }
             }
             else
@@ -170,13 +171,13 @@ namespace BigDataIMDB
         }
         public Task RunTasksWithBlockingCollection(BlockingCollection<string> input)
         {
+            Regex match = new Regex("\t(EN|RU|US)\t", RegexOptions.IgnoreCase |
+                    RegexOptions.Compiled);
             return Task.Factory.StartNew(() =>
             {
-                Regex match = new Regex("\t(EN|RU|US)\t", RegexOptions.IgnoreCase |
-                    RegexOptions.Compiled);
                 foreach (var str in input.GetConsumingEnumerable())
                 {
-                    if (match.IsMatch(str))
+                    if (match.IsMatch(str)) // if languages we need
                     {
                         (int id, Movie movie) = TsvLineParser.ParseLineForMovies(str.AsSpan());
 
@@ -185,11 +186,7 @@ namespace BigDataIMDB
                         {
                             Movie_Codes_dict_Conc.TryAdd(id, movie);
                         }
-                        // add reference from movie name to its id
-                        if (!Movie_Name_Id_dict.ContainsKey(movie.MovieTitle))
-                        {
-                            Movie_Name_Id_dict.Add(movie.MovieTitle, id);
-                        }
+
                     }
                 }
 
