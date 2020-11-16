@@ -53,8 +53,9 @@ namespace BigDataIMDB
 
         static void UxShowMovieInfo(Movie movie)
         {
+            // output title
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"| {movie.MovieTitle}");
+            Console.WriteLine($"| {movie.Title}");
             Console.ForegroundColor = ConsoleColor.White;
 
             // output director
@@ -68,6 +69,10 @@ namespace BigDataIMDB
             }
             Console.WriteLine();
 
+            // output rating
+            Console.WriteLine($"| Rating: {movie.AverageRating}");
+            Console.WriteLine($"| Weighted rating: {movie.WeightedRating}");
+
             // output actors
             Console.Write("| Actors: ");
             foreach (var person in movie.Staff)
@@ -77,14 +82,23 @@ namespace BigDataIMDB
                     Console.Write($" {person.Name}, ");
                 }
             }
-            Console.Write("\b\b\b"); // remove last two characters
+            Console.Write("\b\b\b"); // remove last three characters
             Console.WriteLine();
 
-            // output tas
+            // output tags
             Console.Write("| Tags: ");
             foreach (var tag in movie.Tags)
             {
                 Console.Write($"{tag.Name}, ");
+            }
+            Console.Write("\b\b\b"); // remove last three characters
+            Console.WriteLine();
+
+            // output similar movies
+            Console.Write("| Similar movies: ");
+            foreach (var similarMovie in DataParser.FindSimilarMovies(movie))
+            {
+                Console.Write($"{similarMovie.Title}, ");
             }
             Console.Write("\b\b\b"); // remove last three characters
             Console.WriteLine();
@@ -97,6 +111,7 @@ namespace BigDataIMDB
         {
             DataParser dataParser = new DataParser();
             dataParser.ParseMovieCodesLinq();
+            dataParser.CollectRatingForEachMovie();
             dataParser.ParseActorsDirectorsNames();
             dataParser.ParseActorsDirectorsMovieInfo();
             dataParser.ParseTagsAndItsIds();

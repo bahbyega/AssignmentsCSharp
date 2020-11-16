@@ -55,6 +55,7 @@ namespace BigDataIMDB
                     Task firstCoreTask = RunTasksWithBlockingCollection(blockingCollection);
                     Task secondCoreTask = RunTasksWithBlockingCollection(blockingCollection);
                     Task thirdCoreTask = RunTasksWithBlockingCollection(blockingCollection);
+                    
                     streamReader.ReadLine(); // skip line
                     while ((line = streamReader.ReadLine()) != null)
                     {
@@ -88,12 +89,13 @@ namespace BigDataIMDB
                         }
 
                         // add reference from movie name to its id
-                        if (!Movie_Name_Id_dict.ContainsKey(movie.MovieTitle))
+                        if (!Movie_Name_Id_dict.ContainsKey(movie.Title))
                         {
-                            Movie_Name_Id_dict.Add(movie.MovieTitle, id);
+                            Movie_Name_Id_dict.Add(movie.Title, id);
                         }
                     }
                 }
+                CollectRatingForEachMovie(); // parse file with rating
             }
             else
                 Console.WriteLine("Couldn't find file {0}", PATH_TO_MOVIE_CODES);
@@ -126,9 +128,9 @@ namespace BigDataIMDB
                             }
 
                             // add reference from movie name to its id
-                            if (!Movie_Name_Id_dict.ContainsKey(movie.MovieTitle))
+                            if (!Movie_Name_Id_dict.ContainsKey(movie.Title))
                             {
-                                Movie_Name_Id_dict.Add(movie.MovieTitle, id);
+                                Movie_Name_Id_dict.Add(movie.Title, id);
                             }
                         }
                     }
@@ -158,9 +160,9 @@ namespace BigDataIMDB
                             Movie_Codes_dict.Add(id, movie);
                         }
                         // add reference from movie name to its id
-                        if (!Movie_Name_Id_dict.ContainsKey(movie.MovieTitle))
+                        if (!Movie_Name_Id_dict.ContainsKey(movie.Title))
                         {
-                            Movie_Name_Id_dict.Add(movie.MovieTitle, id);
+                            Movie_Name_Id_dict.Add(movie.Title, id);
                         }
                     }
                 }
@@ -186,9 +188,9 @@ namespace BigDataIMDB
                             Movie_Codes_dict_Conc.TryAdd(id, movie);
                         }
                         // add reference from movie name to its id
-                        if (!Movie_Name_Id_dict.ContainsKey(movie.MovieTitle))
+                        if (!Movie_Name_Id_dict.ContainsKey(movie.Title))
                         {
-                            Movie_Name_Id_dict.Add(movie.MovieTitle, id);
+                            Movie_Name_Id_dict.Add(movie.Title, id);
                         }
                     }
                 }
@@ -279,7 +281,7 @@ namespace BigDataIMDB
             // * v = number of votes for the movie = (votes)
             // * m = minimum votes required to be listed in the Top 250(currently 3000)
             // * C = the mean vote across the whole report(currently 6.9)
-            int minVotesRequiredToBeInTop = 3000;
+            int minVotesRequiredToBeInTop = 500;
             float meanVoteAcross = (float)6.9;
 
             return (numVotes / (numVotes + minVotesRequiredToBeInTop) * averageRating +
@@ -292,7 +294,7 @@ namespace BigDataIMDB
         {
             if (File.Exists(PATH_TO_RATINGS))
             {
-                using (FileStream fileStream = File.OpenRead(PATH_TO_ACTORS_DIRECTORS_CODES_TSV))
+                using (FileStream fileStream = File.OpenRead(PATH_TO_RATINGS))
                 using (StreamReader streamReader = new StreamReader(fileStream))
                 {
                     ReadOnlySpan<char> line;
@@ -308,6 +310,7 @@ namespace BigDataIMDB
                             Movie_Codes_dict.TryGetValue(movieID, out Movie movie);
                             movie.AverageRating = averageRating;
                             movie.WeightedRating = CalculateWeightedRating(numVotes, averageRating);
+                            Movie_Codes_dict[movieID] = movie; // update value ( is it necessary? )
                         }
                     }
                 }
@@ -412,5 +415,60 @@ namespace BigDataIMDB
             }
         }
         #endregion
+
+        // return similar to movie (from parameter) moives
+        public static HashSet<Movie> FindSimilarMovies(Movie movie)
+        {
+            Dictionary<Movie, float> similarMoviesWithSimilarityScore = new Dictionary<Movie, float>();
+
+            // min score of similarity we want
+            float passScore = (float)0.5;
+
+            // check movies of staff
+            foreach(Staff staff in movie.Staff)
+            {
+                // movies where staff is director
+                foreach(Movie movieIsDirector in staff.isDirector)
+                {
+                    if (movieIsDirector.Title != movie.Title && !similarMoviesWithSimilarityScore.ContainsKey(movieIsDirector))
+                    {
+                        float score = movieIsDirector.CompareTo(movie);
+                        if (score > passScore)
+                        {
+                            similarMoviesWithSimilarityScore.Add(movieIsDirector, score);
+                        }
+                    }
+                }
+                // movies where staff is director
+                foreach (Movie movieIsActor in staff.isActor)
+                {
+                    if (movieIsActor.Title != movie.Title && !similarMoviesWithSimilarityScore.ContainsKey(movieIsActor))
+                    {
+                        float score = movieIsActor.CompareTo(movie);
+                        if (score > passScore)
+                        {
+                            similarMoviesWithSimilarityScore.Add(movieIsActor, score);
+                        }
+                    }
+                }
+            }
+
+            // sort dictionary by value into a set
+            var sortedSimilarMoviesWithSimilarityScore = 
+                (from entry in similarMoviesWithSimilarityScore 
+                 orderby entry.Value ascending 
+                 select entry.Key)
+                .Take(10)
+                .ToHashSet();
+
+            // check tags of a movie
+            /*foreach(Tag tag in movie.Tags)
+            {
+                foreach(Movie movieIsTag in tag.MoviesWithScores.TryGetValue()
+            }*/
+
+            // choose only top 10
+            return sortedSimilarMoviesWithSimilarityScore;
+        }
     }
 }

@@ -57,7 +57,7 @@ namespace BigDataIMDB
                 tabCount++;
             }
 
-            return (0, new Movie(/*title, lang*/));
+            return (id, new Movie(title, lang));
         }
         /// <summary>
         /// Parses line containing names of actors and directors
@@ -157,12 +157,13 @@ namespace BigDataIMDB
                 }
                 else if (tabCount == 2) // average rating
                 {
-                    var value = float.Parse(line.Slice(0, tabAt));
+                    // need this weird culture info because float is "0.012345" instead of "0,012345"
+                    var value = float.Parse(line.Slice(0, tabAt).ToString(), CultureInfo.InvariantCulture.NumberFormat);
                     averageRating = value;
                 }
                 else if (tabCount == 3) // number of votes
                 {
-                    var value = int.Parse(line.Slice(0, tabAt));
+                    var value = int.Parse(line.Slice(0)); // to the end
                     numOfVotes = value;
                 }
 
@@ -179,7 +180,7 @@ namespace BigDataIMDB
         // define comma
         private const char Comma = ',';
 
-        // (nocheckin) need to think about the way to remove commaAt since it's csv not tsv
+        /// TODO: (nocheckin) need to think about the way to remove commaAt since it's csv not tsv
         public static (int, Tag) ParseLineForTagIdAndTag(ReadOnlySpan<char> line)
         {
             var commaCount = 0;
@@ -209,14 +210,14 @@ namespace BigDataIMDB
 
             return (tagID, tag);
         }
-        // (nocheckin) need to think about the way to remove commaAt since it's csv not tsv
+        /// TODO: (nocheckin) need to think about the way to remove commaAt since it's csv not tsv
         public static (int, int, float) ParseLineForTagScores(ReadOnlySpan<char> line)
         {
             var commaCount = 0;
 
             int movieID = 0;
             int tagID = 0;
-            float tagScore = (float)0;
+            float tagScore = 0;
 
             while (commaCount <= 2)
             {
