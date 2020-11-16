@@ -273,20 +273,6 @@ namespace BigDataIMDB
             }
         }
 
-        private float CalculateWeightedRating(int numVotes, float averageRating)
-        {
-            // here we compute weighted rating using shrinkage estimator (just like IMDB does)
-            // weighted rating (WR) = (v ÷ (v+m)) × R + (m ÷ (v+m)) × C , where:
-            // * R = average for the movie (mean) = (Rating)
-            // * v = number of votes for the movie = (votes)
-            // * m = minimum votes required to be listed in the Top 250(currently 3000)
-            // * C = the mean vote across the whole report(currently 6.9)
-            int minVotesRequiredToBeInTop = 500;
-            float meanVoteAcross = (float)6.9;
-
-            return (numVotes / (numVotes + minVotesRequiredToBeInTop) * averageRating +
-                minVotesRequiredToBeInTop / (numVotes + minVotesRequiredToBeInTop)) * meanVoteAcross;
-        }
         /// <summary>
         /// Parses file containing rating for each movie and connects them
         /// </summary>
@@ -302,14 +288,13 @@ namespace BigDataIMDB
                     while ((line = streamReader.ReadLine().AsSpan()) != null)
                     {
                         // get data
-                        (int movieID, float averageRating, int numVotes) = TsvLineParser.ParseLineForMovieRating(line);
+                        (int movieID, float Rating, int numVotes) = TsvLineParser.ParseLineForMovieRating(line);
 
                         // connect rating with a movie
                         if (Movie_Codes_dict.ContainsKey(movieID))
                         {
                             Movie_Codes_dict.TryGetValue(movieID, out Movie movie);
-                            movie.AverageRating = averageRating;
-                            movie.WeightedRating = CalculateWeightedRating(numVotes, averageRating);
+                            movie.Rating = Rating;
                             Movie_Codes_dict[movieID] = movie; // update value ( is it necessary? )
                         }
                     }

@@ -70,8 +70,7 @@ namespace BigDataIMDB
             Console.WriteLine();
 
             // output rating
-            Console.WriteLine($"| Rating: {movie.AverageRating}");
-            Console.WriteLine($"| Weighted rating: {movie.WeightedRating}");
+            Console.WriteLine($"| Rating: {movie.Rating}");
 
             // output actors
             Console.Write("| Actors: ");

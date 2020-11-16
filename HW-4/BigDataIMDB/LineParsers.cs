@@ -143,7 +143,7 @@ namespace BigDataIMDB
         {
             var tabCount = 1;
             int movieID = 0;
-            float averageRating = 0;
+            float Rating = 0;
             int numOfVotes = 0;
 
             while (tabCount <= 3)
@@ -159,7 +159,7 @@ namespace BigDataIMDB
                 {
                     // need this weird culture info because float is "0.012345" instead of "0,012345"
                     var value = float.Parse(line.Slice(0, tabAt).ToString(), CultureInfo.InvariantCulture.NumberFormat);
-                    averageRating = value;
+                    Rating = value;
                 }
                 else if (tabCount == 3) // number of votes
                 {
@@ -171,7 +171,7 @@ namespace BigDataIMDB
                 tabCount++;
             }
 
-            return (movieID, averageRating, numOfVotes);
+            return (movieID, Rating, numOfVotes);
         }
 
     }
