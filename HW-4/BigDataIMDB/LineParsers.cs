@@ -8,7 +8,7 @@ using System.Text;
 namespace BigDataIMDB
 {
     /// <summary>
-    /// Classes for parsing lines.
+    /// Class for parsing lines from tsv file.
     /// The point of parsing lines externally is to optimise time required for it.
     /// First of all, each method only parses columns that are needed to be parsed.
     /// Secondly, it uses Spans, which are very efficient in slicing and cutting 
@@ -93,7 +93,7 @@ namespace BigDataIMDB
             return (id, cast);
         }
         /// <summary>
-        /// Parses line contating information in which did an actor or director take part
+        /// Parses line contating information in which movie did an actor or director take part
         /// </summary>
         /// <param name="line"></param>
         /// <returns></returns>
@@ -175,6 +175,14 @@ namespace BigDataIMDB
         }
 
     }
+
+    /// <summary>
+    /// Class for parsing lines from csv file.
+    /// The point of parsing lines externally is to optimise time required for it.
+    /// First of all, each method only parses columns that are needed to be parsed.
+    /// Secondly, it uses Spans, which are very efficient in slicing and cutting 
+    /// compared to string.Split.
+    /// </summary>
     class CsvLineParser
     {
         // define comma
@@ -255,25 +263,30 @@ namespace BigDataIMDB
             int movieImdbID = 0;
             int movieLensID = 0;
 
-            while (commaCount <= 2)
+            while (commaCount <= 1)
             {
                 var commaAt = line.IndexOf(Comma);
 
-                if (commaCount == 1) // movieLens id
-                {
-                    var value = int.Parse(line.Slice(0, commaAt));
-                    movieImdbID = value;
-                }
-                else if (commaCount == 2) // imdb id
+                if (commaCount == 0) // movieLens id
                 {
                     int value;
-                    if (line.IsEmpty) // there are line like "1316,0115548," in the links file
-                        value = 0;  // which means there's no movieLensID for that movie.
-                    else            // that's why we need that check
-                        value = int.Parse(line.Slice(0));
+                    if (line.IsEmpty)
+                        value = 0;  
+                    else            
+                        value = int.Parse(line.Slice(0, commaAt));
                     movieLensID = value;
-                    break;
                 }
+                else if (commaCount == 1) // imdb id
+                {
+                    int value;
+                    if (line.IsEmpty)
+                        value = 0;
+                    else
+                        value = int.Parse(line.Slice(0, commaAt));
+
+                    movieImdbID = value;
+                }
+
                 commaAt = line.IndexOf(Comma);
                 line = line.Slice(commaAt + 1);
                 commaCount++;

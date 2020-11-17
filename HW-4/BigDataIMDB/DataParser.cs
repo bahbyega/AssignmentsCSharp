@@ -375,7 +375,7 @@ namespace BigDataIMDB
 
         /// <summary>
         /// 'Links from movielens to imdbs IDs' file contains information about 
-        /// how to connect IDs from different databases
+        /// how to connect IDs from different databases. Csv: "movieId (movieLensID), imdbId, tmdbId"
         /// Parses that file to get dictionary of links.
         /// </summary>
         private void ParseLinksFromMovieLensToImdbIds()
@@ -476,12 +476,6 @@ namespace BigDataIMDB
                  select entry.Key)
                 .Take(10) // choose only top10
                 .ToHashSet();
-
-            // check tags of a movie
-            /*foreach(Tag tag in movie.Tags)
-            {
-                foreach(Movie movieIsTag in tag.MoviesWithScores.TryGetValue()
-            }*/
 
             return sortedSimilarMoviesWithSimilarityScore;
         }
