@@ -37,6 +37,7 @@ namespace BigDataIMDB
 
         // probably gonna be only one version left -> the best working one (linq for now)
         #region Different versions of the one function
+        
         /// <summary>
         /// Parses file contating info about movie -> id, name, language.
         /// </summary>
@@ -305,6 +306,14 @@ namespace BigDataIMDB
         }
 
         #region Tags and everything connected to it
+        // Tags data is taken from MovieLens database. That means that movies' IDs from IMDB (which we use)
+        // are not the same as in tag files (in tag files IDs are from MovieLens). That's why we have a file
+        // of movies' IDs correspondence and we connect tags using that file.
+
+        /// <summary>
+        /// 'Tag codes movielens' file contains information about tags in a csv: "tagId, tag"
+        /// Parses that file to get dictionary of tags and its IDs
+        /// </summary>
         public void ParseTagsAndItsIds()
         {
             if (File.Exists(PATH_TO_TAG_CODES_MOVIE_LENS))
@@ -329,6 +338,11 @@ namespace BigDataIMDB
             else
                 Console.WriteLine("Couldn't find file {0}", PATH_TO_TAG_CODES_MOVIE_LENS);
         }
+
+        /// <summary>
+        /// 'Tag scores movielens' file contains information about what movie to what tag has what
+        /// relevance (tag score) in a csv: "movieId, tagId, relevance"
+        /// Parses that file to get Tags scores 
         public void ParseTagsAndItsMovieScores()
         {
             ParseLinksFromMovieLensToImdbIds(); // we need to parse it to know how ids connect
@@ -358,6 +372,12 @@ namespace BigDataIMDB
             else
                 Console.WriteLine("Couldn't find file {0}", PATH_TO_TAG_SCORES_MOVIE_LENS);
         }
+
+        /// <summary>
+        /// 'Links from movielens to imdbs IDs' file contains information about 
+        /// how to connect IDs from different databases
+        /// Parses that file to get dictionary of links.
+        /// </summary>
         private void ParseLinksFromMovieLensToImdbIds()
         {
             if (File.Exists(PATH_TO_LINKS_FROM_MOVIELENS_TO_IMDB))
@@ -381,6 +401,13 @@ namespace BigDataIMDB
             else
                 Console.WriteLine("Couldn't find file {0}", PATH_TO_LINKS_FROM_MOVIELENS_TO_IMDB);
         }
+
+        /// <summary>
+        /// Method for connecting tag with id from MovieLens to IMDB
+        /// </summary>
+        /// <param name="movieLensID"></param>
+        /// <param name="tagID"></param>
+        /// <param name="tagScore"></param>
         private void ConnectTagWithMovie(int movieLensID, int tagID, float tagScore)
         {
             if (LinksFromMovieLensToImdbIds_dict.ContainsKey(movieLensID))
@@ -401,7 +428,11 @@ namespace BigDataIMDB
         }
         #endregion
 
-        // return similar to movie (from parameter) moives
+        /// <summary>
+        /// Looks through staff and tags of a movie and searches for similar ones
+        /// </summary>
+        /// <param name="movie"></param>
+        /// <returns>Hashset of similar to movie (from parameter) movies</returns>
         public static HashSet<Movie> FindSimilarMovies(Movie movie)
         {
             Dictionary<Movie, float> similarMoviesWithSimilarityScore = new Dictionary<Movie, float>();
@@ -424,7 +455,7 @@ namespace BigDataIMDB
                         }
                     }
                 }
-                // movies where staff is director
+                // movies where staff is actor
                 foreach (Movie movieIsActor in staff.isActor)
                 {
                     if (movieIsActor.Title != movie.Title && !similarMoviesWithSimilarityScore.ContainsKey(movieIsActor))
@@ -443,7 +474,7 @@ namespace BigDataIMDB
                 (from entry in similarMoviesWithSimilarityScore 
                  orderby entry.Value ascending 
                  select entry.Key)
-                .Take(10)
+                .Take(10) // choose only top10
                 .ToHashSet();
 
             // check tags of a movie
@@ -452,7 +483,6 @@ namespace BigDataIMDB
                 foreach(Movie movieIsTag in tag.MoviesWithScores.TryGetValue()
             }*/
 
-            // choose only top 10
             return sortedSimilarMoviesWithSimilarityScore;
         }
     }
