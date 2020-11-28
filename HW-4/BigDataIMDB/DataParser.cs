@@ -15,7 +15,7 @@ namespace BigDataIMDB
     class DataParser
     {
         // Paths to datasets
-        private const string PATH_TO_MOVIE_CODES = @"../../../../ml-latest/MovieCodes_IMDB.tsv";
+        private const string PATH_TO_MOVIE_CODES = @"ml-latest/MovieCodes_IMDB.tsv";
         private const string PATH_TO_ACTORS_DIRECTORS_NAMES_TXT = @"ml-latest/ActorsDirectorsNames_IMDB.txt";
         private const string PATH_TO_ACTORS_DIRECTORS_CODES_TSV = @"ml-latest/ActorsDirectorsCodes_IMDB.tsv";
         private const string PATH_TO_RATINGS = @"ml-latest/Ratings_IMDB.tsv";
@@ -37,6 +37,7 @@ namespace BigDataIMDB
 
         // probably gonna be only one version left -> the best working one (linq for now)
         #region Different versions of the one function
+        
         /// <summary>
         /// Parses file contating info about movie -> id, name, language.
         /// </summary>
@@ -48,21 +49,21 @@ namespace BigDataIMDB
                 using (StreamReader streamReader = new StreamReader(fileStream))
                 {
                     // read file string by string
-                    string line = null;
+                    string line;
 
                     var blockingCollection = new BlockingCollection<string>();
 
                     Task firstCoreTask = RunTasksWithBlockingCollection(blockingCollection);
                     Task secondCoreTask = RunTasksWithBlockingCollection(blockingCollection);
-                    Task thirdCoreTask = RunTasksWithBlockingCollection(blockingCollection);    // my system has 4 cores:
-                    //Task fourthCoreTask = RunTasksWithBlockingCollection(blockingCollection); // main core loads files <-> 3 cores to process data
+                    Task thirdCoreTask = RunTasksWithBlockingCollection(blockingCollection);
+                    
                     streamReader.ReadLine(); // skip line
                     while ((line = streamReader.ReadLine()) != null)
                     {
                         blockingCollection.Add(line);
                     }
                     blockingCollection.CompleteAdding();
-                    Task.WhenAll(firstCoreTask, secondCoreTask, thirdCoreTask/*, fourthCoreTask*/);
+                    Task.WhenAll(firstCoreTask, secondCoreTask, thirdCoreTask);
                 }
             }
             else
@@ -89,12 +90,13 @@ namespace BigDataIMDB
                         }
 
                         // add reference from movie name to its id
-                        if (!Movie_Name_Id_dict.ContainsKey(movie.MovieTitle))
+                        if (!Movie_Name_Id_dict.ContainsKey(movie.Title))
                         {
-                            Movie_Name_Id_dict.Add(movie.MovieTitle, id);
+                            Movie_Name_Id_dict.Add(movie.Title, id);
                         }
                     }
                 }
+                CollectRatingForEachMovie(); // parse file with rating
             }
             else
                 Console.WriteLine("Couldn't find file {0}", PATH_TO_MOVIE_CODES);
@@ -127,9 +129,9 @@ namespace BigDataIMDB
                             }
 
                             // add reference from movie name to its id
-                            if (!Movie_Name_Id_dict.ContainsKey(movie.MovieTitle))
+                            if (!Movie_Name_Id_dict.ContainsKey(movie.Title))
                             {
-                                Movie_Name_Id_dict.Add(movie.MovieTitle, id);
+                                Movie_Name_Id_dict.Add(movie.Title, id);
                             }
                         }
                     }
@@ -159,9 +161,9 @@ namespace BigDataIMDB
                             Movie_Codes_dict.Add(id, movie);
                         }
                         // add reference from movie name to its id
-                        if (!Movie_Name_Id_dict.ContainsKey(movie.MovieTitle))
+                        if (!Movie_Name_Id_dict.ContainsKey(movie.Title))
                         {
-                            Movie_Name_Id_dict.Add(movie.MovieTitle, id);
+                            Movie_Name_Id_dict.Add(movie.Title, id);
                         }
                     }
                 }
@@ -171,13 +173,13 @@ namespace BigDataIMDB
         }
         public Task RunTasksWithBlockingCollection(BlockingCollection<string> input)
         {
-            Regex match = new Regex("\t(EN|RU|US)\t", RegexOptions.IgnoreCase |
-                    RegexOptions.Compiled);
             return Task.Factory.StartNew(() =>
             {
+                Regex match = new Regex("\t(EN|RU|US)\t", RegexOptions.IgnoreCase |
+                    RegexOptions.Compiled);
                 foreach (var str in input.GetConsumingEnumerable())
                 {
-                    if (match.IsMatch(str)) // if languages we need
+                    if (match.IsMatch(str))
                     {
                         (int id, Movie movie) = TsvLineParser.ParseLineForMovies(str.AsSpan());
 
@@ -186,7 +188,11 @@ namespace BigDataIMDB
                         {
                             Movie_Codes_dict_Conc.TryAdd(id, movie);
                         }
-
+                        // add reference from movie name to its id
+                        if (!Movie_Name_Id_dict.ContainsKey(movie.Title))
+                        {
+                            Movie_Name_Id_dict.Add(movie.Title, id);
+                        }
                     }
                 }
 
@@ -268,20 +274,6 @@ namespace BigDataIMDB
             }
         }
 
-        private float CalculateWeightedRating(int numVotes, float averageRating)
-        {
-            // here we compute weighted rating using shrinkage estimator (just like IMDB does)
-            // weighted rating (WR) = (v ÷ (v+m)) × R + (m ÷ (v+m)) × C , where:
-            // * R = average for the movie (mean) = (Rating)
-            // * v = number of votes for the movie = (votes)
-            // * m = minimum votes required to be listed in the Top 250(currently 3000)
-            // * C = the mean vote across the whole report(currently 6.9)
-            int minVotesRequiredToBeInTop = 3000;
-            float meanVoteAcross = (float)6.9;
-
-            return (numVotes / (numVotes + minVotesRequiredToBeInTop) * averageRating +
-                minVotesRequiredToBeInTop / (numVotes + minVotesRequiredToBeInTop)) * meanVoteAcross;
-        }
         /// <summary>
         /// Parses file containing rating for each movie and connects them
         /// </summary>
@@ -289,7 +281,7 @@ namespace BigDataIMDB
         {
             if (File.Exists(PATH_TO_RATINGS))
             {
-                using (FileStream fileStream = File.OpenRead(PATH_TO_ACTORS_DIRECTORS_CODES_TSV))
+                using (FileStream fileStream = File.OpenRead(PATH_TO_RATINGS))
                 using (StreamReader streamReader = new StreamReader(fileStream))
                 {
                     ReadOnlySpan<char> line;
@@ -297,14 +289,14 @@ namespace BigDataIMDB
                     while ((line = streamReader.ReadLine().AsSpan()) != null)
                     {
                         // get data
-                        (int movieID, float averageRating, int numVotes) = TsvLineParser.ParseLineForMovieRating(line);
+                        (int movieID, float Rating, int numVotes) = TsvLineParser.ParseLineForMovieRating(line);
 
                         // connect rating with a movie
                         if (Movie_Codes_dict.ContainsKey(movieID))
                         {
                             Movie_Codes_dict.TryGetValue(movieID, out Movie movie);
-                            movie.AverageRating = averageRating;
-                            movie.WeightedRating = CalculateWeightedRating(numVotes, averageRating);
+                            movie.Rating = Rating;
+                            Movie_Codes_dict[movieID] = movie; // update value ( is it necessary? )
                         }
                     }
                 }
@@ -314,6 +306,14 @@ namespace BigDataIMDB
         }
 
         #region Tags and everything connected to it
+        // Tags data is taken from MovieLens database. That means that movies' IDs from IMDB (which we use)
+        // are not the same as in tag files (in tag files IDs are from MovieLens). That's why we have a file
+        // of movies' IDs correspondence and we connect tags using that file.
+
+        /// <summary>
+        /// 'Tag codes movielens' file contains information about tags in a csv: "tagId, tag"
+        /// Parses that file to get dictionary of tags and its IDs
+        /// </summary>
         public void ParseTagsAndItsIds()
         {
             if (File.Exists(PATH_TO_TAG_CODES_MOVIE_LENS))
@@ -338,6 +338,11 @@ namespace BigDataIMDB
             else
                 Console.WriteLine("Couldn't find file {0}", PATH_TO_TAG_CODES_MOVIE_LENS);
         }
+
+        /// <summary>
+        /// 'Tag scores movielens' file contains information about what movie to what tag has what
+        /// relevance (tag score) in a csv: "movieId, tagId, relevance"
+        /// Parses that file to get Tags scores 
         public void ParseTagsAndItsMovieScores()
         {
             ParseLinksFromMovieLensToImdbIds(); // we need to parse it to know how ids connect
@@ -367,6 +372,12 @@ namespace BigDataIMDB
             else
                 Console.WriteLine("Couldn't find file {0}", PATH_TO_TAG_SCORES_MOVIE_LENS);
         }
+
+        /// <summary>
+        /// 'Links from movielens to imdbs IDs' file contains information about 
+        /// how to connect IDs from different databases. Csv: "movieId (movieLensID), imdbId, tmdbId"
+        /// Parses that file to get dictionary of links.
+        /// </summary>
         private void ParseLinksFromMovieLensToImdbIds()
         {
             if (File.Exists(PATH_TO_LINKS_FROM_MOVIELENS_TO_IMDB))
@@ -390,6 +401,13 @@ namespace BigDataIMDB
             else
                 Console.WriteLine("Couldn't find file {0}", PATH_TO_LINKS_FROM_MOVIELENS_TO_IMDB);
         }
+
+        /// <summary>
+        /// Method for connecting tag with id from MovieLens to IMDB
+        /// </summary>
+        /// <param name="movieLensID"></param>
+        /// <param name="tagID"></param>
+        /// <param name="tagScore"></param>
         private void ConnectTagWithMovie(int movieLensID, int tagID, float tagScore)
         {
             if (LinksFromMovieLensToImdbIds_dict.ContainsKey(movieLensID))
@@ -409,5 +427,71 @@ namespace BigDataIMDB
             }
         }
         #endregion
+
+        /// <summary>
+        /// Looks through staff and tags of a movie and searches for similar ones
+        /// </summary>
+        /// <param name="movie"></param>
+        /// <returns>Hashset of similar to movie (from parameter) movies</returns>
+        public static HashSet<Movie> FindSimilarMovies(Movie movie)
+        {
+            Dictionary<Movie, float> similarMoviesWithSimilarityScore = new Dictionary<Movie, float>();
+
+            // min score of similarity we want
+            float passScore = (float)0.5;
+
+            foreach(Staff staff in movie.Staff)
+            {
+
+                foreach(Movie movieIsDirector in staff.isDirector)
+                {
+                    if (movieIsDirector.Title != movie.Title && !similarMoviesWithSimilarityScore.ContainsKey(movieIsDirector))
+                    {
+                        float score = movieIsDirector.CompareTo(movie);
+                        if (score > passScore)
+                        {
+                            similarMoviesWithSimilarityScore.Add(movieIsDirector, score);
+                        }
+                    }
+                }
+
+                foreach (Movie movieIsActor in staff.isActor)
+                {
+                    if (movieIsActor.Title != movie.Title && !similarMoviesWithSimilarityScore.ContainsKey(movieIsActor))
+                    {
+                        float score = movieIsActor.CompareTo(movie);
+                        if (score > passScore)
+                        {
+                            similarMoviesWithSimilarityScore.Add(movieIsActor, score);
+                        }
+                    }
+                }
+            }
+
+            // nocheckin: searching through tags adds very odd movies to similarMovies list
+            /*foreach(Tag tag in movie.Tags)
+            {
+                foreach (Movie movieSameTag in tag.MoviesWithScores.Keys)
+                {
+                    if (!similarMoviesWithSimilarityScore.ContainsKey(movieSameTag))
+                    {
+                        float score = movieSameTag.CompareTo(movie);
+                        if (score > passScore)
+                        {
+                            similarMoviesWithSimilarityScore.Add(movieSameTag, score);
+                        }
+                    }
+                }
+            }*/
+
+            var sortedSimilarMoviesWithSimilarityScore = 
+                (from entry in similarMoviesWithSimilarityScore 
+                 orderby entry.Value ascending 
+                 select entry.Key)
+                .Take(10) // choose only top10
+                .ToHashSet();
+
+            return sortedSimilarMoviesWithSimilarityScore;
+        }
     }
 }

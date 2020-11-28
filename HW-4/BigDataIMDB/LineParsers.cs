@@ -8,7 +8,7 @@ using System.Text;
 namespace BigDataIMDB
 {
     /// <summary>
-    /// Classes for parsing lines.
+    /// Class for parsing lines from tsv file.
     /// The point of parsing lines externally is to optimise time required for it.
     /// First of all, each method only parses columns that are needed to be parsed.
     /// Secondly, it uses Spans, which are very efficient in slicing and cutting 
@@ -57,7 +57,7 @@ namespace BigDataIMDB
                 tabCount++;
             }
 
-            return (0, new Movie(/*title, lang*/));
+            return (id, new Movie(title, lang));
         }
         /// <summary>
         /// Parses line containing names of actors and directors
@@ -93,7 +93,7 @@ namespace BigDataIMDB
             return (id, cast);
         }
         /// <summary>
-        /// Parses line contating information in which did an actor or director take part
+        /// Parses line contating information in which movie did an actor or director take part
         /// </summary>
         /// <param name="line"></param>
         /// <returns></returns>
@@ -143,7 +143,7 @@ namespace BigDataIMDB
         {
             var tabCount = 1;
             int movieID = 0;
-            float averageRating = 0;
+            float Rating = 0;
             int numOfVotes = 0;
 
             while (tabCount <= 3)
@@ -157,12 +157,13 @@ namespace BigDataIMDB
                 }
                 else if (tabCount == 2) // average rating
                 {
-                    var value = float.Parse(line.Slice(0, tabAt));
-                    averageRating = value;
+                    // need this weird culture info because float is "0.012345" instead of "0,012345"
+                    var value = float.Parse(line.Slice(0, tabAt).ToString(), CultureInfo.InvariantCulture.NumberFormat);
+                    Rating = value;
                 }
                 else if (tabCount == 3) // number of votes
                 {
-                    var value = int.Parse(line.Slice(0, tabAt));
+                    var value = int.Parse(line.Slice(0)); // to the end
                     numOfVotes = value;
                 }
 
@@ -170,16 +171,24 @@ namespace BigDataIMDB
                 tabCount++;
             }
 
-            return (movieID, averageRating, numOfVotes);
+            return (movieID, Rating, numOfVotes);
         }
 
     }
+
+    /// <summary>
+    /// Class for parsing lines from csv file.
+    /// The point of parsing lines externally is to optimise time required for it.
+    /// First of all, each method only parses columns that are needed to be parsed.
+    /// Secondly, it uses Spans, which are very efficient in slicing and cutting 
+    /// compared to string.Split.
+    /// </summary>
     class CsvLineParser
     {
         // define comma
         private const char Comma = ',';
 
-        // (nocheckin) need to think about the way to remove commaAt since it's csv not tsv
+        /// TODO: (nocheckin) need to think about the way to remove commaAt since it's csv not tsv
         public static (int, Tag) ParseLineForTagIdAndTag(ReadOnlySpan<char> line)
         {
             var commaCount = 0;
@@ -209,14 +218,14 @@ namespace BigDataIMDB
 
             return (tagID, tag);
         }
-        // (nocheckin) need to think about the way to remove commaAt since it's csv not tsv
+        /// TODO: (nocheckin) need to think about the way to remove commaAt since it's csv not tsv
         public static (int, int, float) ParseLineForTagScores(ReadOnlySpan<char> line)
         {
             var commaCount = 0;
 
             int movieID = 0;
             int tagID = 0;
-            float tagScore = (float)0;
+            float tagScore = 0;
 
             while (commaCount <= 2)
             {
@@ -254,25 +263,30 @@ namespace BigDataIMDB
             int movieImdbID = 0;
             int movieLensID = 0;
 
-            while (commaCount <= 2)
+            while (commaCount <= 1)
             {
                 var commaAt = line.IndexOf(Comma);
 
-                if (commaCount == 1) // movieLens id
-                {
-                    var value = int.Parse(line.Slice(0, commaAt));
-                    movieImdbID = value;
-                }
-                else if (commaCount == 2) // imdb id
+                if (commaCount == 0) // movieLens id
                 {
                     int value;
-                    if (line.IsEmpty) // there are line like "1316,0115548," in the links file
-                        value = 0;  // which means there's no movieLensID for that movie.
-                    else            // that's why we need that check
-                        value = int.Parse(line.Slice(0));
+                    if (line.IsEmpty)
+                        value = 0;  
+                    else            
+                        value = int.Parse(line.Slice(0, commaAt));
                     movieLensID = value;
-                    break;
                 }
+                else if (commaCount == 1) // imdb id
+                {
+                    int value;
+                    if (line.IsEmpty)
+                        value = 0;
+                    else
+                        value = int.Parse(line.Slice(0, commaAt));
+
+                    movieImdbID = value;
+                }
+
                 commaAt = line.IndexOf(Comma);
                 line = line.Slice(commaAt + 1);
                 commaCount++;
