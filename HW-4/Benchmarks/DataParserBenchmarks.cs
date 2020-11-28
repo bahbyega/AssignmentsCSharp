@@ -29,7 +29,7 @@ namespace Benchmarks
         {
             dataParser.ParseMovieCodesNoParallel();
         }
-        //[Benchmark]
+        [Benchmark]
         public void Benchmark_of_DataParser_ParseMovieCodes_BlockColl()
         {
             dataParser.ParseMovieCodes_BlockColl();

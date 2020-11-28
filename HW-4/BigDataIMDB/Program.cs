@@ -95,13 +95,13 @@ namespace BigDataIMDB
 
         static void Main(string[] args)
         {
-            DataParser dataParser = new DataParser();
+            /*DataParser dataParser = new DataParser();
             dataParser.ParseMovieCodesLinq();
             dataParser.ParseActorsDirectorsNames();
             dataParser.ParseActorsDirectorsMovieInfo();
             dataParser.ParseTagsAndItsIds();
             dataParser.ParseTagsAndItsMovieScores();
-            UxShowWelcomePage();
+            UxShowWelcomePage();*/
         }
     }
 }
