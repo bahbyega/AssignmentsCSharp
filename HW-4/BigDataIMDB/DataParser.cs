@@ -440,10 +440,9 @@ namespace BigDataIMDB
             // min score of similarity we want
             float passScore = (float)0.5;
 
-            // check movies of staff
             foreach(Staff staff in movie.Staff)
             {
-                // movies where staff is director
+
                 foreach(Movie movieIsDirector in staff.isDirector)
                 {
                     if (movieIsDirector.Title != movie.Title && !similarMoviesWithSimilarityScore.ContainsKey(movieIsDirector))
@@ -455,7 +454,7 @@ namespace BigDataIMDB
                         }
                     }
                 }
-                // movies where staff is actor
+
                 foreach (Movie movieIsActor in staff.isActor)
                 {
                     if (movieIsActor.Title != movie.Title && !similarMoviesWithSimilarityScore.ContainsKey(movieIsActor))
@@ -469,7 +468,22 @@ namespace BigDataIMDB
                 }
             }
 
-            // sort dictionary by value into a set
+            // nocheckin: searching through tags adds very odd movies to similarMovies list
+            /*foreach(Tag tag in movie.Tags)
+            {
+                foreach (Movie movieSameTag in tag.MoviesWithScores.Keys)
+                {
+                    if (!similarMoviesWithSimilarityScore.ContainsKey(movieSameTag))
+                    {
+                        float score = movieSameTag.CompareTo(movie);
+                        if (score > passScore)
+                        {
+                            similarMoviesWithSimilarityScore.Add(movieSameTag, score);
+                        }
+                    }
+                }
+            }*/
+
             var sortedSimilarMoviesWithSimilarityScore = 
                 (from entry in similarMoviesWithSimilarityScore 
                  orderby entry.Value ascending 
